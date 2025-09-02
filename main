@@ -1,0 +1,229 @@
+import webbrowser
+import random
+from kivy.lang import Builder
+from kivy.core.window import Window
+from kivy.properties import StringProperty, NumericProperty, ListProperty
+from kivy.clock import Clock
+from kivy.animation import Animation
+from kivymd.app import MDApp
+from kivymd.uix.screen import MDScreen
+
+# تنظیم اندازه پنجره
+Window.size = (350, 650)
+
+# آدرس وب‌سایت مقصد
+TARGET_WEBSITE_URL = "https://ik.imagekit.io/Armin88/KOS%20VPN.mp4?updatedAt=1756820201106"
+
+# --- زبان طراحی Kivy (KV Language) برای ظاهر پیشرفته ---
+KV = '''
+<StatItem@MDBoxLayout>:
+    adaptive_height: True
+    spacing: "8dp"
+    MDIcon:
+        icon: root.icon
+        theme_text_color: "Custom"
+        text_color: app.theme_cls.primary_color
+        halign: "center"
+    MDLabel:
+        text: root.text
+        font_style: "Caption"
+        theme_text_color: "Secondary"
+
+<VPNInterface>:
+    # پس‌زمینه گرادیانی زیبا
+    canvas.before:
+        Color:
+            rgba: 0.05, 0.05, 0.1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    MDTopAppBar:
+        title: "StealthGuard"
+        pos_hint: {"top": 1}
+        left_action_items: [["menu", lambda x: x]]
+        right_action_items: [["dots-vertical", lambda x: x]]
+        elevation: 0
+        md_bg_color: 0, 0, 0, 0
+
+    MDFloatLayout:
+        # --- افکت درخشش (Glow) برای دکمه ---
+        canvas.before:
+            Color:
+                rgba: root.glow_color
+            RoundedRectangle:
+                size: root.glow_size
+                pos: root.glow_pos
+                radius: [self.size[0] / 2] if self.size else [0]
+                
+        # دکمه اصلی اتصال
+        MDIconButton:
+            id: connect_button
+            icon: "power"
+            pos_hint: {'center_x': 0.5, 'center_y': 0.6}
+            user_font_size: "80sp"
+            theme_icon_color: "Custom"
+            icon_color: 1, 1, 1, 1
+            on_press: root.toggle_connection()
+            md_bg_color: 0.1, 0.2, 0.4, 1 # رنگ اولیه دکمه
+            radius: [self.height / 2]
+
+        MDLabel:
+            id: status_label
+            text: "TAP TO CONNECT"
+            halign: 'center'
+            font_style: "Button"
+            pos_hint: {'center_x': 0.5, 'center_y': 0.45}
+            theme_text_color: "Secondary"
+
+    MDCard:
+        id: info_card
+        orientation: 'vertical'
+        padding: "16dp"
+        spacing: "12dp"
+        size_hint: 0.8, None
+        height: self.minimum_height
+        pos_hint: {'center_x': 0.5, 'center_y': 0.25}
+        md_bg_color: 0.1, 0.1, 0.15, 1
+        radius: [24, 24, 24, 24]
+        elevation: 2
+
+        MDBoxLayout:
+            adaptive_height: True
+            
+            MDIcon:
+                icon: 'map-marker-outline'
+                size_hint_x: None
+                width: self.texture_size[0]
+            MDLabel:
+                text: "Select Location"
+            MDIcon:
+                icon: 'chevron-right'
+                size_hint_x: None
+                width: self.texture_size[0]
+
+        MDSeparator:
+
+        MDGridLayout:
+            cols: 3
+            adaptive_height: True
+            
+            StatItem:
+                id: download_stat
+                icon: 'arrow-down-bold-circle-outline'
+                text: "0 KB/s\\nDownload"
+            StatItem:
+                id: upload_stat
+                icon: 'arrow-up-bold-circle-outline'
+                text: "0 KB/s\\nUpload"
+            StatItem:
+                id: duration_stat
+                icon: 'clock-outline'
+                text: "00:00:00\\nDuration"
+'''
+
+class VPNInterface(MDScreen):
+    connection_status = StringProperty("Disconnected")
+    duration = NumericProperty(0)
+    
+    # Kivy Properties برای افکت درخشش
+    glow_color = ListProperty([0, 0, 0, 0])
+    glow_size = ListProperty([0, 0])
+    glow_pos = ListProperty([0, 0])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.stats_update_event = None
+
+    def toggle_connection(self):
+        if self.connection_status == "Disconnected":
+            self.connect()
+        else:
+            self.disconnect()
+
+    def connect(self):
+        self.connection_status = "Connecting"
+        button = self.ids.connect_button
+        
+        # غیرفعال کردن دکمه
+        button.disabled = True
+        self.ids.status_label.text = "SECURING CONNECTION..."
+
+        # انیمیشن‌ها
+        anim = Animation(md_bg_color=(0.8, 0.6, 0.1, 1), duration=1.5)
+        anim.start(button)
+        
+        # شروع انیمیشن درخشش
+        self.glow_pos = (button.center_x - button.width / 2, button.center_y - button.height / 2)
+        glow_anim = Animation(glow_color=(0.8, 0.6, 0.1, 0.5), glow_size=(button.width + 80, button.height + 80), 
+                              glow_pos=(button.center_x - (button.width + 80)/2, button.center_y - (button.height + 80)/2),
+                              duration=1.5, t='out_quad')
+        glow_anim.start(self)
+
+        Clock.schedule_once(self.connection_successful, 3)
+
+    def connection_successful(self, dt):
+        self.connection_status = "Connected"
+        button = self.ids.connect_button
+        
+        # تغییرات ظاهری نهایی
+        button.md_bg_color = (0.1, 0.7, 0.3, 1) # رنگ سبز
+        self.ids.status_label.text = "CONNECTION SECURED"
+        button.disabled = False
+
+        # تغییر انیمیشن درخشش به رنگ سبز
+        glow_anim = Animation(glow_color=(0.1, 0.7, 0.3, 0.7), duration=1)
+        glow_anim.start(self)
+        
+        # شروع به‌روزرسانی آمار
+        self.duration = 0
+        self.stats_update_event = Clock.schedule_interval(self.update_stats, 1)
+
+        webbrowser.open(TARGET_WEBSITE_URL)
+
+    def disconnect(self):
+        self.connection_status = "Disconnected"
+        button = self.ids.connect_button
+        
+        # توقف به‌روزرسانی آمار
+        if self.stats_update_event:
+            self.stats_update_event.cancel()
+            
+        # بازگرداندن به حالت اولیه
+        button.disabled = True
+        self.ids.status_label.text = "DISCONNECTING..."
+        Animation(md_bg_color=(0.1, 0.2, 0.4, 1), duration=1).start(button)
+        Animation(glow_color=(0,0,0,0), duration=1).start(self) # محو کردن درخشش
+        
+        # ریست کردن آمار
+        self.ids.download_stat.text = "0 KB/s\\nDownload"
+        self.ids.upload_stat.text = "0 KB/s\\nUpload"
+        self.ids.duration_stat.text = "00:00:00\\nDuration"
+
+        Clock.schedule_once(self.disconnected_finished, 1.5)
+
+    def disconnected_finished(self, dt):
+        self.ids.connect_button.disabled = False
+        self.ids.status_label.text = "TAP TO CONNECT"
+        
+    def update_stats(self, dt):
+        # شبیه‌سازی سرعت دانلود و آپلود
+        download_speed = f"{random.randint(100, 1500)} KB/s"
+        upload_speed = f"{random.randint(50, 500)} KB/s"
+        self.ids.download_stat.text = f"{download_speed}\\nDownload"
+        self.ids.upload_stat.text = f"{upload_speed}\\nUpload"
+        
+        # محاسبه و نمایش زمان اتصال
+        self.duration += 1
+        mins, secs = divmod(self.duration, 60)
+        hours, mins = divmod(mins, 60)
+        self.ids.duration_stat.text = f"{int(hours):02d}:{int(mins):02d}:{int(secs):02d}\\nDuration"
+
+class MainApp(MDApp):
+    def build(self):
+        self.theme_cls.theme_style = "Dark"
+        self.theme_cls.primary_palette = "Cyan"
+        return Builder.load_string(KV)
+
+if __name__ == '__main__':
+    MainApp().run()
