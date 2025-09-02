@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK with Docker
 
 on:
   push:
@@ -10,37 +10,15 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
 
+    container:
+      image: kivy/buildozer:latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17 and Python 3.10
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y p7zip-full autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtcl8.6 libsqlite3-dev libssl-dev libgdbm-dev libbz2-dev libreadline-dev libffi-dev liblzma-dev
-          python -m pip install --upgrade pip
-          pip install "cython<3.0" buildozer
-
-      - name: Set up Android SDK and NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Force Buildozer to use correct paths
-        run: |
-          # This command ensures buildozer uses the SDK/NDK set up by the previous step
-          sed -i 's|^#*\(android\.sdk_path\s*=\s*\).*$|android.sdk_path = '"$ANDROID_SDK_ROOT"'|' buildozer.spec
-          sed -i 's|^#*\(android\.ndk_path\s*=\s*\).*$|android.ndk_path = '"$ANDROID_NDK_HOME"'|' buildozer.spec
-          
-          echo "--- Verifying final buildozer.spec content ---"
-          cat buildozer.spec
+      - name: Set ownership for workspace
+        run: sudo chown -R $(whoami) .
 
       - name: Build with Buildozer
         run: buildozer -v android debug
