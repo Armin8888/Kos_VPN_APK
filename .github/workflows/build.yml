@@ -20,7 +20,7 @@ jobs:
 
       - name: Set ownership for workspace
         # این دستور برای حل مشکلات احتمالی دسترسی در محیط داکر است
-        run: sudo chown -R 1001:1001 .
+        run: sudo chown -R $(whoami) .
 
       - name: Build with Buildozer
         run: buildozer -v android debug
