@@ -1,4 +1,4 @@
-[[app]
+[app]
 title = Kos VPN
 package.name = kosvpn
 package.domain = org.kosvpn
